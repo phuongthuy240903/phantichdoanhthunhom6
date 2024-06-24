@@ -4,7 +4,7 @@ from flask import Flask, render_template, request, jsonify
 app = Flask(__name__)
 
 # Đọc file CSV khi server khởi động
-df = pd.read_csv('file.csv')
+df = pd.read_csv('file.csv', encoding='utf-8')
 
 # Chuyển đổi cột 'Order Date' sang định dạng datetime
 df['Order Date'] = pd.to_datetime(df['Order Date'], format='%m/%d/%y %H:%M', errors='coerce')
@@ -26,7 +26,7 @@ def calculate_total_revenue(start_date, end_date):
 
     # Tính tổng doanh thu
     total_revenue = filtered_df['Total Price'].sum()
-    return total_revenue
+    return float(total_revenue)
 
 def calculate_monthly_revenue(year):
     # Lọc dữ liệu theo năm được chọn
@@ -39,6 +39,15 @@ def calculate_monthly_revenue(year):
     monthly_revenue['Order Date'] = monthly_revenue['Order Date'].dt.strftime('%m/%Y')
 
     return monthly_revenue
+
+def calculate_product_revenue(year):
+    # Lọc dữ liệu theo năm được chọn
+    filtered_df = df[df['Order Date'].dt.year == year]
+
+    # Nhóm theo sản phẩm và tính tổng doanh thu
+    product_revenue = filtered_df.groupby('Product')['Total Price'].sum().reset_index()
+
+    return product_revenue
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -78,6 +87,11 @@ def chart_data():
 
     return jsonify(chart_data)
 
+@app.route('/product-revenue', methods=['GET'])
+def product_revenue():
+    year = int(request.args.get('year'))
+    product_revenue_data = calculate_product_revenue(year).to_dict(orient='records')
 
+    return jsonify(product_revenue_data)
 if __name__ == '__main__':
     app.run(debug=True)
